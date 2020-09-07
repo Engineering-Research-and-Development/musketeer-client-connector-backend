@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Aramis",
+    "privacy": 1,
+    "description": "Data cannot leave the facilities of each data owner, and the predictive models are transferred without encryption. At every client a gradient update is computed using a Federated Learning scheme.",
+    "label": "POM1",
+    "specs": {
+      "privacy": 3,
+      "overload": 3,
+      "client": true,
+      "server": false,
+      "storage": 1,
+      "communication": 3,
+      "accountability": 3
+    }
+  },
+  {
+    "name": "Athos",
+    "privacy": 2,
+    "description": "The server can operate in the encrypted domain without having access to the unencrypted model. This schema is designed for use cases where the same data owner has data allocated in different locations, data cannot be moved for legal/architectural reasons, and the predictive model will be private.",
+    "label": "POM2",
+    "specs": {
+      "privacy": 4,
+      "overload": 3,
+      "client": true,
+      "server": false,
+      "storage": 1,
+      "communication": 4,
+      "accountability": 2
+    }
+  },
+  {
+    "name": "Porthos",
+    "privacy": 3,
+    "description": "Different data owners use different private keys for homomorphic encryption, and a re-encryptor on the server side can transform encrypted models among different private keys.",
+    "label": "POM3",
+    "specs": {
+      "privacy": 5,
+      "overload": 3,
+      "client": true,
+      "server": false,
+      "storage": 1,
+      "communication": 4,
+      "accountability": 2
+    }
+  },
+  {
+    "name": "Rochefort",
+    "privacy": 4,
+    "description": "The Industrial Data Space (IDP) provides Secure Cloud Services, acting either as a trusted cryptographic service provider that leverages on a double encryption mechanism and as private cloud storage for user's encrypted data. Every participant has to store the encrypted data in a private cloud. Upon completion, a global model is obtained.",
+    "label": "POM4",
+    "specs": {
+      "privacy": 2,
+      "overload": 1,
+      "client": false,
+      "server": true,
+      "storage": 1,
+      "communication": 4,
+      "accountability": 5
+    }
+  },
+  {
+    "name": "deWinter",
+    "privacy": 5,
+    "description": "A cryptography method is used, data does not leave the users' local storage databases and data is never decrypted outside users' facilities. A proxy acts as a key translator and the results are afterwards translated to build the model. Any training algorithm that can be decomposed into basic operations can be adapted to this scheme.",
+    "label": "POM5",
+    "specs": {
+      "privacy": 4,
+      "overload": 5,
+      "client": true,
+      "server": true,
+      "storage": 1,
+      "communication": 3,
+      "accountability": 2
+    }
+  },
+  {
+    "name": "Richelieu",
+    "privacy": 6,
+    "description": "No identification of any singular pattern is possible. The aggregation takes place on the client side, no raw data is transferred outside the client facilities. The ML model training takes place in the server by using the aggregated information from the clients",
+    "label": "POM6",
+    "specs": {
+      "privacy": 5,
+      "overload": 3,
+      "client": true,
+      "server": true,
+      "storage": 1,
+      "communication": 2,
+      "accountability": 2
+    }
+  },
+  {
+    "name": "Planchet",
+    "privacy": 7,
+    "description": "Privacy constraints are at a minimum and data can freely be transferred and joined in the server. The resulting model is known to the server. As a requirement, the training can start when all the data is placed in the cloud.",
+    "label": "POM7",
+    "specs": {
+      "privacy": 1,
+      "overload": 5,
+      "client": false,
+      "server": true,
+      "storage": 1,
+      "communication": 4,
+      "accountability": 1
+    }
+  },
+  {
+    "name": "Dartagnan",
+    "privacy": 8,
+    "description": "Privacy constraints are at a minimum and data can freely be transferred and joined in a given user. The resulting model is known to the user that has trained the model. As a requirement, the training can start when all the data is placed in the same user.",
+    "label": "POM8",
+    "specs": {
+      "privacy": 1,
+      "overload": 1,
+      "client": true,
+      "server": false,
+      "storage": 5,
+      "communication": 3,
+      "accountability": 5
+    }
+  }
+]

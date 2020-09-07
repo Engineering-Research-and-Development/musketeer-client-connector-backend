@@ -1,0 +1,14 @@
+version: '3'
+services:
+  connector-client-backend:
+    image: MYBUILDIMAGE
+    ports:
+      - "5000:5000"
+    volumes:
+      - FS_PATH_DATA:/input_data/
+      - FS_PATH_LOGS:/results/logs/
+      - FS_PATH_RESULTS:/results/
+  connector-client-frontend:
+    image: gitlab.alidalab.it:5000/musketeer/ngx-musketeer-client:1.0.9
+    ports:
+      - "4500:80"

@@ -1,0 +1,16 @@
+pika==0.13.0
+pip==20.1.1
+image
+requests
+setuptools>=41.0.0
+tensorflow==1.15.2
+keras==2.2.5
+scikit-learn
+flask
+flask-cors
+ipython
+pandas
+matplotlib
+seaborn
+mpld3
+numpy==v1.16.4
