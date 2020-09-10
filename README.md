@@ -1,4 +1,8 @@
-# connector-client-backend  
+# connector-client-backend 
+
+This repository contains a RESTful API to interact with a cloud target platform for federated machine learning. It is primarily targeted at algorithm developers who are planning to design and run federated machine learning algorithms through a graphical user interface. 
+
+The graphical user interface (front-end component) it is available at "https://github.com/Engineering-Research-and-Development/musketeer-client-connector-frontend".
 
 ## Prerequisites
 
@@ -152,3 +156,4 @@ Once it is done, the local server will be running at '127.0.0.1:5000', whilst yo
         datasets: datasets  
     }
 
+This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 824988. https://musketeer.eu/
