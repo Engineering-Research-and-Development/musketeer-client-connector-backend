@@ -1,14 +1,63 @@
 version: '3'
+
+networks:
+  app-tier:
+    driver: bridge
+
 services:
+
   connector-client-backend:
-    image: MYBUILDIMAGE
+    image: gitlab.alidalab.it:5000/musketeer/connector-client-backend:2.2.5
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "5000:5000"
     volumes:
-      - FS_PATH_DATA:/input_data/
-      - FS_PATH_LOGS:/results/logs/
-      - FS_PATH_RESULTS:/results/
+      - client_connector_data:/input_data/
+      - client_connector_logs:/results/logs/
+      - client_connector_results:/results/
+      - client_connector_libraries:/usr/local/lib/python3.6/site-packages
+      - client_connector_configs:/configs/
+    networks:
+      - app-tier
+    restart: on-failure
+    depends_on:
+      - mongodb
+    links:
+      - mongodb
+
   connector-client-frontend:
-    image: gitlab.alidalab.it:5000/musketeer/ngx-musketeer-client:1.0.9
+    image: gitlab.alidalab.it:5000/musketeer/ngx-musketeer-client:1.2.1
     ports:
       - "4500:80"
+
+  mongodb:
+    image: docker.io/bitnami/mongodb:4.4
+    ports:
+      - "27017:27017"
+    volumes:
+      - 'mongodb_data:/bitnami/mongodb'
+    environment:
+      - MONGODB_USERNAME=my_user
+      - MONGODB_PASSWORD=password123
+      - MONGODB_DATABASE=my_database
+    networks:
+      - app-tier
+volumes:
+  client_connector_data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: # YOUR_LOCAL_DATA_PATH
+  client_connector_logs:
+  client_connector_results:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: # YOUR_LOCAL_RESULTS_PATH
+  client_connector_libraries:
+  client_connector_configs:
+  mongodb_data:

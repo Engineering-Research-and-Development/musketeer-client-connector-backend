@@ -21,20 +21,13 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from bson import ObjectId
 
-import abc
+import json
 
 
-class ABCDataConnector(metaclass=abc.ABCMeta):
-
-    def __init__(self, spec_dataset):
-
-        self.spec_dataset = spec_dataset
-        self.x = None
-        self.y = None
-
-        return
-
-    @abc.abstractmethod
-    def get_data(self):
-        pass
+class JSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return json.JSONEncoder.default(self, o)

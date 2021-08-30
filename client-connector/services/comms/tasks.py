@@ -1,7 +1,34 @@
+"""
+Please note that the following code was developed for the project MUSKETEER in DRL funded by
+the European Union under the Horizon 2020 Program.
+The project started on 01/12/2018 and will be / was completed on 30/11/2021. Thus, in accordance
+with article 30.3 of the Multi-Beneficiary General Model Grant Agreement of the Program, the above
+limitations are in force until 30/11/2025.
+
+Author: Engineering - Ingegneria Informatica S.p.A. (musketeer-team@eng.it).
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
+
 from utils import platform_utils as utils
+from utils.compressor import compress_data_descriptions, decompress_data_descriptions
 
 import logging
 import communication_abstract_interface as ffl
+import json
+import os.path
 
 
 # Set up logger
@@ -22,7 +49,7 @@ class Tasks:
         self.user = user
         self.password = password
 
-    def get_tasks(self):
+    def get_tasks(self, filter_parameters):
 
         """
         Get a list of all the tasks.
@@ -39,16 +66,185 @@ class Tasks:
             with user:
                 tasks = user.get_tasks()
 
-            return tasks
+            # filtered_tasks = self.apply_filters(tasks, filter_parameters)
+            filtered_tasks = []
+            for task in tasks:
+                if "owner" in task["definition"]:
+                    filtered_tasks.append(task)
+
+            return filtered_tasks
 
         except Exception as err:
             LOGGER.error('error: %s', err)
             raise err
 
-    def add_task(self, task_name, task_definition):
+    def get_task_info(self, task_name):
+
+        try:
+            context = utils.platform(self.credentials, self.user, self.password)
+            user = ffl.Factory.user(context)
+
+            with user:
+                task = user.task_info(task_name)
+
+        except Exception as err:
+            LOGGER.error('error: %s', err)
+            raise err
+
+        task["definition"] = json.loads(task["definition"])
+        task["definition"] = decompress_data_descriptions(task["definition"])
+
+        # Calculate and set the "actions"
+        # It's the task "creator"
+        status = task["status"]
+        if "task_name" in task:
+
+            participate_flag = -1
+
+            if status == "COMPLETE":
+
+                aggregate_flag = -1
+                result_flag = 1
+                logs_flag = 1
+
+            elif status == "CREATED":
+                aggregate_flag = 1
+                result_flag = 0
+                logs_flag = 0
+
+            elif status == "FAILED":
+                aggregate_flag = -1
+                result_flag = -1
+                logs_flag = 1
+
+            else:
+                aggregate_flag = -1
+                result_flag = 0
+                logs_flag = 1
+
+            if status == "CREATED" and os.path.exists("/results/logs/" + self.user + "_aggregator_" + task_name + ".log"):
+                aggregate_flag = -1
+                logs_flag = 1
+
+        # It's a possible participant
+        else:
+            task["task_name"] = task_name
+
+            if os.path.exists("/results/logs/" + self.user + "_participant_" + task_name + ".log"):
+                logs_flag = 1
+            else:
+                logs_flag = -1
+
+            result_flag = -1
+            aggregate_flag = -1
+
+            if status == "CREATED":
+
+                participate_flag = 1
+            else:
+
+                participate_flag = -1
+
+        # Add "actions" object
+        task["actions"] = {
+            "aggregate": aggregate_flag,
+            "participate": participate_flag,
+            "result": result_flag,
+            "logs": logs_flag
+        }
+
+        return task
+
+    def apply_filters(self, tasks_list, filter_parameters):
+
+        filtered_tasks = []
+
+        search = filter_parameters["search"] if filter_parameters["search"] is not None else ""
+        status = filter_parameters["status"] if filter_parameters["status"] is not None else ""
+        pom = filter_parameters["pom"] if filter_parameters["pom"] is not None else ""
+        pageSize = int(filter_parameters["pageSize"])
+        page = int(filter_parameters["page"])
+
+        try:
+
+            for task in tasks_list:
+                definition = json.loads(task["definition"])
+                if "owner" in task["definition"]:
+                    if owned is not None:
+                        if owned == "true":
+                            if self.user == definition["owner"] \
+                                    and search in task["task_name"]\
+                                    and status in task["status"]\
+                                    and pom in str(definition["POM"]):
+                                filtered_tasks.append(task)
+                        elif self.user != json.loads(task["definition"])["owner"] \
+                                and search in task["task_name"] \
+                                and status in task["status"] \
+                                and pom in str(definition["POM"]):
+                            filtered_tasks.append(task)
+                    else:
+                        if search in task["task_name"] \
+                                and status in task["status"] \
+                                and pom in str(definition["POM"]):
+                            filtered_tasks.append(task)
+
+            return {"tasks": filtered_tasks, "total": len(filtered_tasks), "page": page}
+
+        except Exception as err:
+            LOGGER.error('error: %s', err)
+            raise err
+
+    def get_created_tasks(self):
+
+        """
+        Returns a list with all the tasks created by the current user.
+        Throws: An exception on failure
+        :return: list of all the available tasks
+        :rtype: `list`
+        """
+
+        try:
+            context = utils.platform(self.credentials, self.user, self.password)
+            user = ffl.Factory.user(context)
+
+            with user:
+                created_tasks = user.get_created_tasks()
+
+            sorted_created_tasks = sorted(created_tasks, key=lambda k: k['added'], reverse=True)
+
+            return sorted_created_tasks
+
+        except Exception as err:
+            LOGGER.error('error: %s', err)
+            raise err
+
+    def get_joined_tasks(self):
+
+        """
+        Returns a list with all the joined tasks.
+        Throws: An exception on failure
+        :return: list of all the available tasks
+        :rtype: `list`
+        """
+
+        try:
+            context = utils.platform(self.credentials, self.user, self.password)
+            user = ffl.Factory.user(context)
+
+            with user:
+                joined_tasks = user.get_joined_tasks()
+
+            return joined_tasks
+
+        except Exception as err:
+            LOGGER.error('error: %s', err)
+            raise err
+
+    def add_task(self, task_name, task_definition, topology):
 
         """
         Create a Federated ML task.
+        :param topology: RING or STAR
         :param credentials: json file containing credentials.
         :type credentials: `str`
         :param user: user name for authentication as task creator.
@@ -61,13 +257,15 @@ class Tasks:
         :type task_definition: `dict`
         """
 
+        task_definition = compress_data_descriptions(task_definition)
+
         try:
 
             context = utils.platform(self.credentials, self.user, self.password)
             user = ffl.Factory.user(context)
 
             with user:
-                result = user.create_task(task_name, ffl.Topology.star, task_definition)
+                result = user.create_task(task_name, topology, task_definition)
 
             LOGGER.debug(result)
             LOGGER.info('Task ' + task_name + ' created.')

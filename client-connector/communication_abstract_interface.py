@@ -20,6 +20,9 @@ Source: https://github.com/IBM/pycloudmessenger/blob/master/pycloudmessenger/ffl
  * limitations under the License.
  */
 
+Please note that the following code was developed for the project MUSKETEER
+in DRL funded by the European Union under the Horizon 2020 Program.
+
 Please note that the following code was taken from https://github.com/IBM/pycloudmessenger
 repository in order to be used as abstract base class for the Communication Messenger to the
 central server, involved for the exchange of models, and model weights for the
@@ -51,6 +54,7 @@ class TaskException(Exception):
 class Topology(str):
     """ Class representing FFL task topologies """
     star = "STAR"
+    ring = "RING"
 
 
 class Notification(str, Enum):
@@ -139,7 +143,7 @@ class Notification(str, Enum):
         return cls.is_notification(msg, cls.participant_updated)
 
     def __str__(self):
-        return self.value
+        return f'{self.value}'
 
 
 
@@ -158,21 +162,6 @@ class AbstractContext(ABC):
 
 class AbstractUser(ABC):
     """ Class that allows a general user to avail of the FFL platform services """
-
-    @abstractmethod
-    def create_user(self, user_name: str, password: str, organisation: str) -> dict:
-        """
-        Register a new user on the platform.
-        Throws: An exception on failure
-        :param user_name: user name (must be a non-empty string and unique;
-                                     if a user with this name has registered
-                                     before, an exception is thrown).
-        :type user_name: `str`
-        :param password: password (must be a non-empty string)
-        :type password: `str`
-        :param organisation: name of the user's organisation
-        :type organisation: `str`
-        """
 
     @abstractmethod
     def create_task(self, task_name: str, topology: str, definition: dict) -> dict:
@@ -230,6 +219,24 @@ class AbstractUser(ABC):
         :rtype: `list`
         """
 
+    @abstractmethod
+    def get_models(self) -> list:
+        """
+        Returns a list with all the available trained models.
+        Throws: An exception on failure
+        :return: list of all the available models
+        :rtype: `list`
+        """
+
+    @abstractmethod
+    def get_model(self, task_name: str) -> dict:
+        """
+        Returns model info
+        Throws: An exception on failure
+        :return: dict of model info
+        :rtype: `dict`
+        """
+
 
 class AbstractParticipant(ABC):
     """ This class provides the functionality needed by the
@@ -237,7 +244,7 @@ class AbstractParticipant(ABC):
 
 
     @abstractmethod
-    def send(self, message: dict = None) -> None:
+    def send(self, message: dict = None, metadata: str = None) -> None:
         """
         Send a message to the aggregator and return immediately (not waiting for a reply).
         Throws: An exception on failure
@@ -269,7 +276,7 @@ class AbstractAggregator(ABC):
         aggregator of a federated learning task. """
 
     @abstractmethod
-    def send(self, message: dict = None, participant: str = None) -> None:
+    def send(self, message: dict = None, participant: str = None, topology: str = None) -> None:
         """
         Send a message to all task participants and return immediately (not waiting for a reply).
         Throws: An exception on failure

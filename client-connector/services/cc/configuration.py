@@ -1,3 +1,28 @@
+"""
+Please note that the following code was developed for the project MUSKETEER in DRL funded by
+the European Union under the Horizon 2020 Program.
+The project started on 01/12/2018 and will be / was completed on 30/11/2021. Thus, in accordance
+with article 30.3 of the Multi-Beneficiary General Model Grant Agreement of the Program, the above
+limitations are in force until 30/11/2025.
+
+Author: Engineering - Ingegneria Informatica S.p.A. (musketeer-team@eng.it).
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
+
+import configparser
 import json
 import logging
 import importlib
@@ -7,15 +32,21 @@ import sys
 LOGGER = logging.getLogger('configuration')
 LOGGER.setLevel(logging.DEBUG)
 
-COMM_DB_PATH = "db/comm_config.json"
-COMMS_CONFIG_PATH = "config.json"
+config = configparser.ConfigParser()
+config.read('app.ini')
 
-MMLL_DB_PATH = "db/mmll_config.json"
+credentials = ["COMM_CONFIG_PATH"]
+
+COMM_CONFIG_PATH = config["LIBRARIES"]["COMM_CONFIG_PATH"]
+CONFIG_PATH = config["LIBRARIES"]["CONFIG_PATH"]
+
+MMLL_CONFIG_PATH = config["LIBRARIES"]["MMLL_CONFIG_PATH"]
 
 '''
 Methods to configure and manage external necessary components to integrate into the CC:
 
     - comms_git_url: Git URL where to download the comms package 
+    - comms_git_token: Git Token to access private repository 
     - comms_module: module name to import
     - comms_config: JSON configuration for the comms instance used
     
@@ -30,17 +61,15 @@ Methods to configure and manage external necessary components to integrate into 
 
 def set_comm_json_configurations(config_data):
 
-    if "comms_git_user" not in config_data:
-        config_data["comms_git_user"] = None
-    if "comms_git_password" not in config_data:
-        config_data["comms_git_password"] = None
+    if "comms_git_token" not in config_data:
+        config_data["comms_git_token"] = None
 
     check_comm_type_configurations(config_data)
-    install_package_from_git(config_data["comms_git_url"], config_data["comms_git_user"], config_data["comms_git_password"])
+    install_package_from_git(config_data["comms_git_url"], config_data["comms_git_token"])
     check_import_module(config_data["comms_module"])
 
     try:
-        with open(COMM_DB_PATH, "w") as jsonFile:
+        with open(COMM_CONFIG_PATH, "w") as jsonFile:
             json.dump(config_data, jsonFile)
 
     except Exception as err:
@@ -50,7 +79,7 @@ def set_comm_json_configurations(config_data):
     comms_config = config_data["comms_config"]
 
     try:
-        with open(COMMS_CONFIG_PATH, "w") as jsonFile:
+        with open(CONFIG_PATH, "w") as jsonFile:
             json.dump(comms_config, jsonFile)
     except Exception as err:
         LOGGER.error('error: %s', err)
@@ -59,13 +88,11 @@ def set_comm_json_configurations(config_data):
 
 def set_mmll_json_configurations(config_data):
 
-    if "mmll_git_user" not in config_data:
-        config_data["comms_git_user"] = None
-    if "mmll_git_password" not in config_data:
-        config_data["comms_git_password"] = None
+    if "mmll_git_token" not in config_data:
+        config_data["mmll_git_token"] = None
 
     check_mmll_type_configurations(config_data)
-    install_package_from_git(config_data["mmll_git_url"], config_data["mmll_git_user"], config_data["mmll_git_password"])
+    install_package_from_git(config_data["mmll_git_url"], config_data["mmll_git_token"])
     check_class_from_classpath(config_data["mmll_masternode_classpath"])
     check_class_from_classpath(config_data["mmll_workernode_classpath"])
     check_class_from_classpath(config_data["mmll_comms_master_wrapper_classpath"])
@@ -73,8 +100,16 @@ def set_mmll_json_configurations(config_data):
 
     validate_catalogue_json(config_data["mmll_algorithms"])
 
+    # Install TF 2.5.0
     try:
-        with open(MMLL_DB_PATH, "w") as jsonFile:
+        subprocess.check_call([sys.executable, "-m", "pip", "--default-timeout=6000", "install", "tensorflow==2.5.0"])
+
+    except Exception as err:
+        LOGGER.error('error: %s', err)
+        raise err
+
+    try:
+        with open(MMLL_CONFIG_PATH, "w") as jsonFile:
             json.dump(config_data, jsonFile)
 
     except Exception as err:
@@ -100,13 +135,10 @@ def check_comm_type_configurations(config_data):
     if type(config_data["comms_git_url"]) is not str:
         raise TypeError("Insert 'comms_git_url' as string type")
 
-    if config_data["comms_git_user"] is not None and config_data["comms_git_password"] is not None:
+    if config_data["comms_git_token"] is not None:
 
-        if type(config_data["comms_git_user"]) is not str:
-            raise TypeError("Insert 'comms_git_user' as string type")
-
-        if type(config_data["mmll_git_password"]) is not str:
-            raise TypeError("Insert 'comms_git_password' as string type")
+        if type(config_data["comms_git_token"]) is not str:
+            raise TypeError("Insert 'comms_git_token' as string type")
 
     if type(config_data["comms_module"]) is not str:
         raise TypeError("Insert 'comms_module' as string type")
@@ -121,13 +153,10 @@ def check_mmll_type_configurations(config_data):
     if type(config_data["mmll_git_url"]) is not str:
         raise TypeError("Insert 'mmll_git_url' as string type")
 
-    if config_data["mmll_git_user"] is not None and config_data["mmll_git_password"] is not None:
+    if config_data["mmll_git_token"] is not None:
 
-        if type(config_data["mmll_git_user"]) is not str:
-            raise TypeError("Insert 'mmll_git_user' as string type")
-
-        if type(config_data["mmll_git_password"]) is not str:
-            raise TypeError("Insert 'mmll_git_password' as string type")
+        if type(config_data["mmll_git_token"]) is not str:
+            raise TypeError("Insert 'mmll_git_token' as string type")
 
     if type(config_data["mmll_masternode_classpath"]) is not str:
         raise TypeError("Insert 'mmll_masternode_classpath' as string type")
@@ -148,7 +177,7 @@ def check_mmll_type_configurations(config_data):
 def get_comm_json_configurations():
 
     try:
-        with open(COMM_DB_PATH, "r") as jsonFile:
+        with open(COMM_CONFIG_PATH, "r") as jsonFile:
             config_data = json.load(jsonFile)
         return config_data
 
@@ -160,7 +189,7 @@ def get_comm_json_configurations():
 def get_mmll_json_configurations():
 
     try:
-        with open(MMLL_DB_PATH, "r") as jsonFile:
+        with open(MMLL_CONFIG_PATH, "r") as jsonFile:
             config_data = json.load(jsonFile)
         return config_data
 
@@ -169,19 +198,19 @@ def get_mmll_json_configurations():
         raise err
 
 
-def install_package_from_git(package, user, password):
+def install_package_from_git(package, token):
 
-    if user is not None and password is not None:
+    if token is not None:
 
         if package.find("git+https://") == 0:
-            package = package[0:12] + user + ":" + password + "@" + package[12:]
+            package = package[0:12] + token + "@" + package[12:]
         elif package.find("git+http://") == 0:
-            package = package[0:11] + user + ":" + password + "@" + package[11:]
+            package = package[0:11] + token + "@" + package[11:]
         else:
             raise TypeError("Package has to start with: git+https://")
 
     try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+        subprocess.check_call([sys.executable, "-m", "pip", "--default-timeout=6000", "install", package])
         LOGGER.info(str(package) + " package installed")
 
     except Exception as err:
@@ -213,7 +242,7 @@ def check_class_from_classpath(classpath):
 
 def get_mmll_class_from_classpath(key):
 
-    with open(MMLL_DB_PATH) as json_file:
+    with open(MMLL_CONFIG_PATH) as json_file:
         classpath = json.load(json_file)[key]
 
     mod = __import__(classpath[::-1].split(".", 1)[1][::-1], fromlist=[classpath[::-1].split(".", 1)[0][::-1]])

@@ -22,19 +22,27 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-import abc
+import logging
 
 
-class ABCDataConnector(metaclass=abc.ABCMeta):
+# Set up logger
+logging.basicConfig(
+    level=logging.ERROR,
+    format='%(asctime)s.%(msecs)03d %(levelname)-6s %(name)s %(thread)d :: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S')
 
-    def __init__(self, spec_dataset):
+logger = logging.getLogger('preprocessing')
+logger.setLevel(logging.DEBUG)
 
-        self.spec_dataset = spec_dataset
-        self.x = None
-        self.y = None
 
-        return
+def do_preprocessing(preprocessing, input_data_description, mn):
 
-    @abc.abstractmethod
-    def get_data(self):
-        pass
+    parameters = [input_data_description]
+
+    if preprocessing["properties"] is not None:
+
+        for parameter in preprocessing["properties"]:
+
+            parameters.append(parameter["value"])
+
+    return getattr(mn, preprocessing["name"])(*parameters)

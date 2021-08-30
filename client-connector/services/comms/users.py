@@ -22,43 +22,59 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-import json
+from utils import platform_utils as utils
+
 import logging
-import configparser
+import communication_abstract_interface as ffl
 
-# Set up logger
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s.%(msecs)03d %(levelname)-6s %(name)s %(thread)d :: %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S')
 
-LOGGER = logging.getLogger('catalogue')
+LOGGER = logging.getLogger('auth')
 LOGGER.setLevel(logging.DEBUG)
 
-config = configparser.ConfigParser()
-config.read('app.ini')
 
-ALGORITHMS_PATH = config["CATALOGUE"]["ALGORITHMS_PATH"]
-POMS_PATH = config["CATALOGUE"]["POMS_PATH"]
-
-
-def get_algorithms():
+def login(credentials, username, password):
 
     try:
+        context = utils.platform(credentials, username, password)
+        ffl_user = ffl.Factory.user(context)
 
-        with open(ALGORITHMS_PATH) as json_file:
-            return json.load(json_file)["mmll_algorithms"]
+        with ffl_user:
+            ffl_user.connect()
 
     except Exception as err:
         LOGGER.error('error: %s', err)
         raise err
 
+    return True
 
-def get_poms():
+
+def registration(credentials, username, password, org):
 
     try:
-        with open(POMS_PATH) as json_file:
-            return json.load(json_file)
+        fflapi = utils.get_comms_module()
+        fflapi.create_user(username, password, org, credentials)
+
+    except Exception as err:
+        LOGGER.error('error: %s', err)
+        raise err
+
+    return
+
+
+def change_password(credentials, username, password, new_password):
+
+    try:
+
+        context = utils.platform(credentials, username, password)
+        user = ffl.Factory.user(context)
+
+        with user:
+            result = user.change_password(username, new_password)
+
+        LOGGER.debug(result)
+        LOGGER.info("Password changed")
+
+        return result
 
     except Exception as err:
         LOGGER.error('error: %s', err)

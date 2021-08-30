@@ -21,11 +21,11 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-
 from PIL import Image
 from io import BytesIO
 from sklearn.decomposition import PCA
 from sklearn.metrics import confusion_matrix
+from utils.compare_models import CompareModels
 
 import json
 import traceback
@@ -35,6 +35,7 @@ import os
 import pandas as pd
 import seaborn as sn
 import logging
+import configparser
 
 # Set up logger
 logging.basicConfig(
@@ -44,6 +45,11 @@ logging.basicConfig(
 
 logger = logging.getLogger('chart utils')
 logger.setLevel(logging.DEBUG)
+
+config = configparser.ConfigParser()
+config.read('app.ini')
+
+SERVER_DB_PATH = config["SERVER"]["SERVER_DB_PATH"]
 
 
 def create_chart(master_node, pom, algorithm_name, type, task_name, model, x, y_tst):
@@ -64,9 +70,26 @@ def create_chart(master_node, pom, algorithm_name, type, task_name, model, x, y_
     elif type in ['classification']:
 
         y = np.argmax(y_tst, axis=-1)  # Convert to labels
+        preds = np.argmax(preds, axis=-1)  # Convert to labels
         classes = np.arange(y_tst.shape[1])
 
         plot_cm_seaborn(preds, y, classes, task_name=task_name, normalize=True)
+
+    elif type in ['regression']:
+
+        preds = model.predict(x)
+
+        logger.debug(y_tst)
+        logger.debug(preds)
+
+        plt = CompareModels()
+        try:
+            plt.add(model_name="Regression - evaluation metrics", y_test=y_tst, y_pred=preds)
+        except:
+            plt.add(model_name="Regression - evaluation metrics", y_test=y_tst.flatten(), y_pred=preds.flatten())
+
+        output_filename = 'results/' + task_name + '.png'
+        plt.savefig(output_filename)
 
 
 def clustering_pca(x, preds, task_name):
@@ -78,7 +101,7 @@ def clustering_pca(x, preds, task_name):
             plt.scatter(x[:, 0], x[:, 1], c=preds)
             plt.xlabel('x')
             plt.ylabel('y')
-            plt.title('Kmeans clustering')
+            plt.title('Clustering')
             plt.grid(True)
             output_filename = 'results/' + task_name + '.png'
             plt.savefig(output_filename)
@@ -96,7 +119,7 @@ def clustering_pca(x, preds, task_name):
             plt.scatter(X_pca[:,0], X_pca[:, 1], c=preds)
             plt.xlabel('PCA component 1')
             plt.ylabel('PCA component 2')
-            plt.title('Kmeans clustering with 2 PCA components')
+            plt.title(' Clustering with 2 PCA components')
             plt.grid(True)
             output_filename = 'results/' + task_name + '.png'
             plt.savefig(output_filename)
@@ -133,20 +156,20 @@ def plot_cm_seaborn(preds, y, classes, task_name, normalize=False, cmap=plt.cm.G
 
 def add_image_result(task_name, relative_path):
 
-    with open("db/server_db.json", "r") as jsonFile:
+    with open(SERVER_DB_PATH, "r") as jsonFile:
         data = json.load(jsonFile)
 
-    with open("db/server_db.json", "r") as jsonFileBackup:
+    with open(SERVER_DB_PATH, "r") as jsonFileBackup:
         backup_data = json.load(jsonFileBackup)
 
     data["image-results"][task_name] = os.getcwd()+"/"+relative_path
 
     try:
-        with open("db/server_db.json", "w") as jsonFile:
+        with open(SERVER_DB_PATH, "w") as jsonFile:
             json.dump(data, jsonFile)
     except:
         print("Error: backup json")
-        with open("db/server_db.json", "w") as jsonFileBackup:
+        with open(SERVER_DB_PATH, "w") as jsonFileBackup:
             json.dump(backup_data, jsonFileBackup)
         raise
     return

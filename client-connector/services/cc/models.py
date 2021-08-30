@@ -22,19 +22,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-import abc
+from cc_controller import db
+
+import datetime
 
 
-class ABCDataConnector(metaclass=abc.ABCMeta):
-
-    def __init__(self, spec_dataset):
-
-        self.spec_dataset = spec_dataset
-        self.x = None
-        self.y = None
-
-        return
-
-    @abc.abstractmethod
-    def get_data(self):
-        pass
+class Dataset(db.DynamicDocument):
+    name = db.StringField(max_length=60)
+    added = db.DateTimeField(default=datetime.datetime.now)
+    datastorage = db.StringField(max_length=60)  # i.e. FileSystem
+    format = db.StringField(max_length=60)  # i.e. csv
+    module = db.StringField(max_length=60)  # i.e. CsvConnector

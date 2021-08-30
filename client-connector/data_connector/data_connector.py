@@ -24,6 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import pandas as pd
 import json
+import pickle
 
 from data_connector.abstract_data_connector import ABCDataConnector
 
@@ -39,7 +40,7 @@ class CsvConnector(ABCDataConnector):
         path = self.spec_dataset["path"]
         header = self.spec_dataset["header"]
         features = self.data_description["features"]
-        labels = self.data_description["labels"]
+        labels = self.data_description["labels"] if "labels" in self.data_description else 0
 
         if header is False:
             data = pd.read_csv(path, header=None)
@@ -57,6 +58,32 @@ class CsvConnector(ABCDataConnector):
         """
         Read Csv file from File System
 
+        :return:
+        'x' and 'y' data as numpy array
+        """
+
+        return self.x, self.y
+
+
+class PklConnector(ABCDataConnector):
+
+    def __init__(self, spec_dataset):
+
+        super().__init__(spec_dataset)
+
+        path = self.spec_dataset["path"]
+        label = self.spec_dataset["label"]
+
+        if label is True:
+            with open(path, 'rb') as f:
+                [self.x, self.y] = pickle.load(f)
+        else:
+            self.y = None
+            with open(path, 'rb') as f:
+                [self.x] = pickle.load(f)
+
+    def get_data(self):
+        """
         :return:
         'x' and 'y' data as numpy array
         """

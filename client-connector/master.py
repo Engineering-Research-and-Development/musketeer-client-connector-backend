@@ -22,10 +22,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-from data_connector.data_connector import CsvConnector
+from data_connector.data_connector import CsvConnector, PklConnector
 from utils.charts_utils import create_chart
+from utils.compressor import decompress_data_descriptions
 from communication import create_aggregator_communication, wait_for_workers_to_join
 from services.cc.configuration import get_mmll_class_from_classpath
+from services.preprocessing import preprocessing
+from services.fml.crypto.crypt_PHE import Crypto as CR
 
 import argparse
 import logging
@@ -57,48 +60,160 @@ def run_master_node(comms, masternode_class, task_definition, datasets, aggregat
     pom = int(task_definition["POM"])
 
     data_description = task_definition["data_description"]
-    logger.info("Data description: ")
-    logger.info(data_description)
+    logger.info("Number of features and labels: \n" + str(data_description))
+
+    # Defining encryption object for specific POMs/algorithms
+    if pom == 5:
+        key_size = int(task_definition["key_size"]) if "key_size" in task_definition else 128
+        cr = CR(key_size=key_size)
+        task_definition["cr"] = cr
+        logger.info("Crypto object: %s", str(cr))
+
+    # Prepare input/target data description
+    if "input_data_description" in task_definition:
+        task_definition["input_data_description"] = json.loads(task_definition["input_data_description"])
+    if "target_data_description" in task_definition:
+        task_definition["target_data_description"] = json.loads(task_definition["target_data_description"])
+    task_definition = decompress_data_descriptions(task_definition)
+
+    input_data_description = None
+    target_data_description = None
+    if "input_data_description" in task_definition:
+        input_data_description = json.loads(task_definition["input_data_description"].replace("\'", "\""))
+        task_definition["input_data_description"] = input_data_description
+        logger.info("Input data description: \n" + str(input_data_description))
+    if "target_data_description" in task_definition:
+        target_data_description = json.loads(task_definition["target_data_description"].replace("\'", "\""))
+        task_definition["target_data_description"] = target_data_description
+        logger.info("Target data description: \n" + str(target_data_description))
+
+    disconnect_bad_workers = str(task_definition["disconnect_bad_workers"]) if "disconnect_bad_workers" in task_definition else "false"
+    logger.info("'Disconnect bad workers' strategy is: " + disconnect_bad_workers)
 
     verbose = False
     ####################################
 
     ####################################
-    # Data connector #
+    # DATA CONNECTOR TO RETRIEVE DATASETS
+
     logger.info('Aggregator: loading Validation Data')
     if "validation" in datasets and datasets["validation"] is not None:
         try:
-            validation_dataset = CsvConnector(spec_dataset=datasets["validation"], data_description=data_description)
+            if datasets["validation"]["format"] == "csv":
+                validation_dataset = CsvConnector(spec_dataset=datasets["validation"], data_description=data_description)
+            elif datasets["validation"]["format"] == "pkl":
+                validation_dataset = PklConnector(spec_dataset=datasets["validation"])
         except Exception as err:
             logger.error('MasterNode error during validation data loading: ' + str(err))
             raise err
         [x_val, y_val] = validation_dataset.get_data()
+        logger.debug(x_val[:2])
 
     logger.info('Aggregator: loading Test Data')
     try:
-        test_dataset = CsvConnector(spec_dataset=datasets["test"], data_description=data_description)
+        if datasets["validation"]["format"] == "csv":
+            test_dataset = CsvConnector(spec_dataset=datasets["test"], data_description=data_description)
+        elif datasets["validation"]["format"] == "pkl":
+            test_dataset = PklConnector(spec_dataset=datasets["test"])
+        [x_tst, y_tst] = test_dataset.get_data()
     except Exception as err:
         logger.error('MasterNode error during test data loading: ' + str(err))
         raise err
     ####################################
 
     ####################################
-    # Creating Central Node object
+    # CREATING CENTRAL NODE OBJECT AND MODEL MASTER
+
     logger.info('Aggregator: creating aggregator object')
     mn = masternode_class(pom, comms, logger, verbose)
+    mn.create_model_Master(algorithm_name, model_parameters=task_definition)
+    ####################################
 
-    # Set validation and test dataset
-    # [x_val, y_val] = validation_dataset.get_data()
-    # mn.set_validation_data("validation_dataset", x_val, y_val)
-    # logger.info('MasterNode loaded %d patterns for validation' % mn.NPval)
-    [x_tst, y_tst] = test_dataset.get_data()
+    ####################################
+    # CHECK DATA AT WORKERS
+
+    if input_data_description is not None:
+
+        logger.info("Checking data at workers")
+
+        _err, bad_workers = mn.check_data_at_workers(input_data_description, target_data_description)
+
+        if _err is not None:
+
+            logger.info("Bad workers: " + str(bad_workers))
+
+            if disconnect_bad_workers == "false":
+
+                logger.info("Stopping the whole process..")
+                raise _err
+
+            else:
+
+                logger.info("Terminating bad workers..")
+                mn.terminate_workers(bad_workers)
+    ####################################
+
+    ####################################
+    # PRE-PROCESSING STEPS
+
+    preprocessing_steps = task_definition["preprocessing"] if "preprocessing" in task_definition else None
+
+    if preprocessing_steps is None:
+
+        logger.info("No pre-processing steps selected")
+
+    else:
+
+        for step in preprocessing_steps:
+
+            logger.info("Running pre-processing step: %s", step["name"])
+            preprocessing_result = preprocessing.do_preprocessing(step, input_data_description, mn)
+
+            if isinstance(preprocessing_result, tuple):
+
+                [data_transformer, new_input_data_description, errors_preprocessing] = preprocessing_result
+
+                if data_transformer is not None:
+                    x_val = data_transformer.transform(x_val)
+                    x_tst = data_transformer.transform(x_tst)
+
+                    try:
+                        logger.debug("Datasets transformed:")
+                        logger.debug(x_val[:2])
+                        logger.debug(x_tst[:2])
+                    except:
+                        pass
+
+                    input_data_description = new_input_data_description
+                else:
+                    logger.error(str(errors_preprocessing))
+                    raise Exception
+
+            else:
+
+                data_transformer = preprocessing_result
+                x_val = data_transformer.transform(x_val)
+                x_tst = data_transformer.transform(x_tst)
+
+                try:
+                    logger.debug("Datasets transformed:")
+                    logger.debug(x_val[:2])
+                    logger.debug(x_tst[:2])
+                except:
+                    pass
+
+            logger.info("Completed pre-processing step: %s", step["name"])
+
+    ####################################
+
+    ####################################
+    # RUNNING
+
     mn.set_test_data("test_dataset", x_tst, y_tst)
     logger.info('MasterNode loaded %d patterns for test' % mn.NPtst)
 
     # Creating a ML model
     logger.info('Aggregator: activating task: ' + algorithm_name)
-
-    mn.create_model_Master(algorithm_name, model_parameters=task_definition)
 
     logger.info('MMLL model %s ready for training' % algorithm_name)
 
@@ -118,17 +233,56 @@ def run_master_node(comms, masternode_class, task_definition, datasets, aggregat
     model = mn.get_model()
 
     logger.info('Aggregator: Terminating all user nodes')
-    mn.terminate_Workers()
+    mn.terminate_workers()
 
     # Update server status to "completed"
-    logger.info('Dispatch final model to participants')
+    logger.info('Dispatching final model and stopping the task')
 
     # Create chart
     create_chart(master_node=mn, pom=pom, algorithm_name=algorithm_name, type=algorithm_type, task_name=task_name, model=model, x=x_tst, y_tst=y_tst)
 
-    with aggregator:
-        aggregator.stop_task(model)
-    logger.info('Completed training')
+    if algorithm_name == "NN":
+
+        ''' 
+        from tensorflow.keras.models import Sequential, load_model, save_model, Model
+
+        # Hotfix function
+        def make_keras_picklable():
+            def __getstate__(self):
+                model_str = ""
+                with tempfile.NamedTemporaryFile(suffix='.hdf5', delete=True) as fd:
+                    save_model(self, fd.name, overwrite=True)
+                    model_str = fd.read()
+                d = {'model_str': model_str}
+                return d
+
+            def __setstate__(self, state):
+                with tempfile.NamedTemporaryFile(suffix='.hdf5', delete=True) as fd:
+                    fd.write(state['model_str'])
+                    fd.flush()
+                    model = load_model(fd.name)
+                self.__dict__ = model.__dict__
+
+            cls = Model
+            cls.__getstate__ = __getstate__
+            cls.__setstate__ = __setstate__
+
+        make_keras_picklable()
+        '''
+
+        output_model_path = "/results/models/" + task_name + "_model"
+        model.save(output_model_path)
+
+        logger.info('The Neural Network model resulting from ' + task_name + ' is saved in your local file system.')
+
+        with aggregator:
+            aggregator.stop_task(model=None)
+
+    else:
+        with aggregator:
+            aggregator.stop_task(model=model)
+
+    logger.info('Task completed')
     logger.info('!x')  # To end log stream event
 
 

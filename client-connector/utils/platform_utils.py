@@ -25,11 +25,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import communication_abstract_interface as ffl
 import importlib
 import json
+import configparser
+import utils.serializer as serializer
+
+config = configparser.ConfigParser()
+config.read('app.ini')
+COMM_CONFIG_PATH = config["LIBRARIES"]["COMM_CONFIG_PATH"]
 
 
 def get_comms_module():
 
-    with open('db/comm_config.json') as json_file:
+    with open(COMM_CONFIG_PATH) as json_file:
         module_name = json.load(json_file)["comms_module"]
 
     return importlib.import_module(module_name)
@@ -41,4 +47,7 @@ def platform(credentials: str = None, user: str = None, password: str = None, co
 
     ffl.Factory.register(config, fflapi.Context, fflapi.User, fflapi.Aggregator, fflapi.Participant)
 
-    return ffl.Factory.context(config, credentials, user, password)
+    try:
+        return ffl.Factory.context(config, credentials, user, password, encoder=serializer.Base64Serializer)
+    except:
+        return ffl.Factory.context(config, credentials, user=user, password=password)

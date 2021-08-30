@@ -22,8 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 
-from data_connector.data_connector import CsvConnector
-from utils.charts_utils import create_chart
+from data_connector.data_connector import CsvConnector, PklConnector
 from communication import create_participant_communication
 from services.cc.configuration import get_mmll_class_from_classpath
 
@@ -62,7 +61,7 @@ def run_worker_node(comms, workernode_class, task_definition, datasets):
 
     ####################################
     # Creating Central Node object
-    logger.info('Aggregator: creating aggregator object')
+    logger.info('Aggregator: creating worker node object')
     wn = workernode_class(pom, comms, logger, verbose)
     ####################################
 
@@ -72,38 +71,62 @@ def run_worker_node(comms, workernode_class, task_definition, datasets):
     # Set training, validation and test dataset
     logger.info('Participant: loading Training Data')
     try:
-        training_dataset = CsvConnector(spec_dataset=datasets["training"], data_description=data_description)
+        if datasets["training"]["format"] == "csv":
+            training_dataset = CsvConnector(spec_dataset=datasets["training"], data_description=data_description)
+        elif datasets["training"]["format"] == "pkl":
+            training_dataset = PklConnector(spec_dataset=datasets["training"])
     except Exception as err:
         logger.error('WorkerNode error during training data loading: ' + str(err))
         raise err
     [x_tr, y_tr] = training_dataset.get_data()
-    wn.set_training_data("training_dataset", x_tr, y_tr)
-    logger.info('WorkerNode loaded %d patterns for training' % wn.NPtr)
+
+    try:
+        logger.debug(x_tr[0:2])
+        logger.debug(y_tr[0:2])
+    except:
+        pass
+
+    if y_tr is None:
+        logger.info("No 'labels' provided")
+        wn.set_training_data("training_dataset", x_tr)
+    else:
+        wn.set_training_data("training_dataset", x_tr, y_tr)
+        logger.info('WorkerNode loaded %d patterns for training' % wn.NPtr)
 
     logger.info('Participant: loading Validation Data')
     if "validation" in datasets and datasets["validation"] is not None:
         try:
-            validation_dataset = CsvConnector(spec_dataset=datasets["validation"], data_description=data_description)
+            if datasets["validation"]["format"] == "csv":
+                validation_dataset = CsvConnector(spec_dataset=datasets["validation"], data_description=data_description)
+            elif datasets["validation"]["format"] == "pkl":
+                validation_dataset = PklConnector(spec_dataset=datasets["validation"])
         except Exception as err:
             logger.error('WorkerNode error during validation data loading: ' + str(err))
             raise err
         [x_val, y_val] = validation_dataset.get_data()
         wn.set_validation_data("validation_dataset", x_val, y_val)
         logger.info('WorkerNode loaded %d patterns for validation' % wn.NPval)
+        if y_val is None:
+            logger.info("No 'labels' provided")
 
     logger.info('Participant: loading Test Data')
     if "test" in datasets and datasets["test"] is not None:
         try:
-            test_dataset = CsvConnector(spec_dataset=datasets["test"], data_description=data_description)
+            if datasets["test"]["format"] == "csv":
+                test_dataset = CsvConnector(spec_dataset=datasets["test"], data_description=data_description)
+            elif datasets["test"]["format"] == "pkl":
+                test_dataset = PklConnector(spec_dataset=datasets["test"])
         except Exception as err:
             logger.error('WorkerNode error during test data loading: ' + str(err))
             raise err
         [x_tst, y_tst] = test_dataset.get_data()
         wn.set_test_data("test_dataset", x_tst, y_tst)
         logger.info('WorkerNode loaded %d patterns for test' % wn.NPtst)
+        if y_tst is None:
+            logger.info("No 'labels' provided")
     ####################################
 
-    wn.create_model_worker(algorithm_name)
+    wn.create_model_worker(algorithm_name.strip())
     logger.info('MMLL model %s ready for training' % algorithm_name)
 
     wn.run()

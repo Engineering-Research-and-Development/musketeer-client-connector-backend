@@ -25,6 +25,9 @@ A logger class.
 """
 
 import logging
+import time
+import json
+import sys
 
 
 class Logger:
@@ -64,3 +67,100 @@ class Logger:
 
     def info(self, message):
         self.logger.info(message)
+
+
+def check_termination_string(text):
+
+    if text[-3:] == "!x\n":
+
+        return True
+    else:
+        return False
+
+
+def get_log_stream_plain(user, mode, task_name):
+
+    path = "results/logs/" + user + "_" + mode + "_" + task_name + ".log"
+
+    text = ""
+    end = False
+
+    try:
+        while not end:
+
+            previous_text = '%s' % text
+
+            time.sleep(1.0)
+            f = open(path, "r")
+            text = f.read()
+            f.close()
+
+            if len(text) > len(previous_text):
+
+                if check_termination_string(text):
+
+                    text = text[:-3]
+                    end = True
+
+                yield text[len(previous_text):]
+
+        logging.info("Exited while loop")
+    except Exception as err:
+        logging.error(err)
+        raise err
+
+
+def get_log_stream(user, mode, task_name):
+
+    path = "results/logs/" + user + "_" + mode + "_" + task_name + ".log"
+
+    text = ""
+    end = False
+
+    try:
+        while not end:
+
+            previous_text = '%s' % text
+
+            time.sleep(1.0)
+            f = open(path, "r")
+            text = f.read()
+            f.close()
+
+            if len(text) > len(previous_text):
+
+                if check_termination_string(text):
+
+                    text = text[:-3]
+                    end = True
+
+                yield "id:{_id}\ndata:{data}\n\n".format(_id=task_name,
+                                                         data=json.dumps({"line": text[len(previous_text):]}))
+                sys.stdout.flush()
+        logging.info("Exited while loop")
+    except Exception as err:
+        logging.error(err)
+        yield "id:{_id}\nevent: error\ndata:{data}\n\n".format(_id=task_name,
+                                                               data=json.dumps({"message": str(err)}))
+
+
+def get_log_batch(user, mode, task_name):
+
+    path = "results/logs/" + user + "_" + mode + "_" + task_name + ".log"
+
+    try:
+
+        f = open(path, "r")
+        text = f.read()
+        f.close()
+
+        if check_termination_string(text):
+
+            text = text[:-3]
+            return {"logs": text, "end": True}
+
+        return {"logs": text, "end": False}
+
+    except Exception as err:
+        logging.error(err)
+        raise err

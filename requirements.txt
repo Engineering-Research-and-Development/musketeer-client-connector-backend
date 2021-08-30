@@ -1,9 +1,12 @@
+jsonpickle
+pymongo==3.8.0
+flask-mongoengine==1.0.0
 pika==0.13.0
 pip==20.1.1
 image
 requests
 setuptools>=41.0.0
-tensorflow==1.15.2
+tensorflow==2.4.0
 keras==2.2.5
 scikit-learn
 flask
@@ -14,3 +17,5 @@ matplotlib
 seaborn
 mpld3
 numpy==v1.16.4
+phe
+dill
