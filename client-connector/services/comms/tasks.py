@@ -49,7 +49,7 @@ class Tasks:
         self.user = user
         self.password = password
 
-    def get_tasks(self, filter_parameters):
+    def get_tasks(self):
 
         """
         Get a list of all the tasks.
@@ -66,7 +66,6 @@ class Tasks:
             with user:
                 tasks = user.get_tasks()
 
-            # filtered_tasks = self.apply_filters(tasks, filter_parameters)
             filtered_tasks = []
             for task in tasks:
                 if "owner" in task["definition"]:
@@ -100,6 +99,7 @@ class Tasks:
         if "task_name" in task:
 
             participate_flag = -1
+            delete_flag = 1
 
             if status == "COMPLETE":
 
@@ -137,6 +137,7 @@ class Tasks:
 
             result_flag = -1
             aggregate_flag = -1
+            delete_flag = -1
 
             if status == "CREATED":
 
@@ -150,49 +151,11 @@ class Tasks:
             "aggregate": aggregate_flag,
             "participate": participate_flag,
             "result": result_flag,
-            "logs": logs_flag
+            "logs": logs_flag,
+            "delete": delete_flag
         }
 
         return task
-
-    def apply_filters(self, tasks_list, filter_parameters):
-
-        filtered_tasks = []
-
-        search = filter_parameters["search"] if filter_parameters["search"] is not None else ""
-        status = filter_parameters["status"] if filter_parameters["status"] is not None else ""
-        pom = filter_parameters["pom"] if filter_parameters["pom"] is not None else ""
-        pageSize = int(filter_parameters["pageSize"])
-        page = int(filter_parameters["page"])
-
-        try:
-
-            for task in tasks_list:
-                definition = json.loads(task["definition"])
-                if "owner" in task["definition"]:
-                    if owned is not None:
-                        if owned == "true":
-                            if self.user == definition["owner"] \
-                                    and search in task["task_name"]\
-                                    and status in task["status"]\
-                                    and pom in str(definition["POM"]):
-                                filtered_tasks.append(task)
-                        elif self.user != json.loads(task["definition"])["owner"] \
-                                and search in task["task_name"] \
-                                and status in task["status"] \
-                                and pom in str(definition["POM"]):
-                            filtered_tasks.append(task)
-                    else:
-                        if search in task["task_name"] \
-                                and status in task["status"] \
-                                and pom in str(definition["POM"]):
-                            filtered_tasks.append(task)
-
-            return {"tasks": filtered_tasks, "total": len(filtered_tasks), "page": page}
-
-        except Exception as err:
-            LOGGER.error('error: %s', err)
-            raise err
 
     def get_created_tasks(self):
 
@@ -321,6 +284,19 @@ class Tasks:
             with user:
                 return user.join_task(task_name)
                 LOGGER.debug('joined task')
+
+        except Exception as err:
+            LOGGER.error('error: %s', err)
+            raise err
+
+    def delete_task(self, task_name):
+
+        try:
+            context = utils.platform(self.credentials, self.user, self.password)
+            user = ffl.Factory.user(context)
+
+            with user:
+                return user.delete_task(task_name)
 
         except Exception as err:
             LOGGER.error('error: %s', err)

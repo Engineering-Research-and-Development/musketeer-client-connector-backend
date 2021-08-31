@@ -7,7 +7,7 @@ networks:
 services:
 
   connector-client-backend:
-    image: gitlab.alidalab.it:5000/musketeer/connector-client-backend:2.2.5
+    image: gitlab.alidalab.it:5000/musketeer/connector-client-backend:2.2.7
     build:
       context: .
       dockerfile: Dockerfile
@@ -28,7 +28,7 @@ services:
       - mongodb
 
   connector-client-frontend:
-    image: gitlab.alidalab.it:5000/musketeer/ngx-musketeer-client:1.2.1
+    image: gitlab.alidalab.it:5000/musketeer/ngx-musketeer-client:1.2.4
     ports:
       - "4500:80"
 

@@ -79,3 +79,23 @@ def change_password(credentials, username, password, new_password):
     except Exception as err:
         LOGGER.error('error: %s', err)
         raise err
+
+
+def deregister(credentials, username, password):
+
+    try:
+
+        context = utils.platform(credentials, username, password)
+        user = ffl.Factory.user(context)
+
+        with user:
+            result = user.deregister()
+
+        LOGGER.debug(result)
+        LOGGER.info("User deregistered")
+
+        return result
+
+    except Exception as err:
+        LOGGER.error('error: %s', err)
+        raise err

@@ -334,7 +334,7 @@ def login_user():
     user = data['user']
     password = data['password']
 
-    if authentication.login(credentials, user, password):
+    if users.login(credentials, user, password):
 
         user_id = uuid.uuid4()
         session['user_id'] = user_id
@@ -385,6 +385,21 @@ def change_password():
     return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
 
 
+@app.route('/cc/comms/deregister', methods=['DELETE'])
+def deregister_user():
+
+    username = g.user.username
+    password = g.user.password
+
+    users.deregister(credentials=credentials, username=username, password=password)
+
+    del session['user_id']
+    global user_obj
+    user_obj = None
+
+    return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
+
+
 @app.route('/cc/comms/tasks', methods=['GET', 'POST'])
 @cross_origin()
 def tasks():
@@ -394,8 +409,7 @@ def tasks():
 
     if request.method == 'GET':
 
-        filter_parameters = {}
-        result = Tasks(credentials=credentials, user=username, password=password).get_tasks(filter_parameters)
+        result = Tasks(credentials=credentials, user=username, password=password).get_tasks()
 
     elif request.method == 'POST':
 
@@ -417,14 +431,20 @@ def tasks():
     return json.dumps(result), 200, {'ContentType': 'application/json'}
 
 
-@app.route('/cc/comms/tasks/<task_name>', methods=['GET', 'POST'])
+@app.route('/cc/comms/tasks/<task_name>', methods=['GET', 'DELETE'])
 @cross_origin()
-def get_task_info(task_name):
+def task(task_name):
 
     username = g.user.username
     password = g.user.password
 
-    result = Tasks(credentials=credentials, user=username, password=password).get_task_info(task_name)
+    if request.method == 'GET':
+
+        result = Tasks(credentials=credentials, user=username, password=password).get_task_info(task_name)
+
+    elif request.method == 'DELETE':
+
+        result = Tasks(credentials=credentials, user=username, password=password).delete_task(task_name)
 
     return json.dumps(result), 200, {'ContentType': 'application/json'}
 
