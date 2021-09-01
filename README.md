@@ -226,21 +226,65 @@ Register an account to the target platform using the configured communication me
         org: str  
     }  
 
+Change the password access credential to the target platform using the configured communication messenger library
+
+    PATCH /cc/comms/change_password  
+      
+    {
+        new_password: str
+    }  
+
+Deregister the logged-in user from the target platform using the configured communication messenger library
+
+    DELETE /cc/comms/deregister   
+
 Get the list of the created tasks in the target platform using the configured communication messenger library
       
     GET /cc/comms/tasks  
-    
-Get the list of your own tasks created in the target platform using the configured communication messenger library
-    
-    GET /cc/comms/tasks/assigned
 
-Create a new task by inserting the name of the task and all required fields that define a task towards the configured communication messenger library
-      
+Create a new task by inserting the name of the task and all required fields that define a task towards the configured communication messenger and federated machine learning libraries
+
     POST /cc/comms/tasks       
     {  
         task_name: str,  
         definition: dict 
     }  
+
+Get the task information of a specified task using the configured communication messenger library; in addition to the task specification, another information, useful for the  GUI, is included so that action icons are shown or not depending on the logged-in user. For instance, only the task creator can aggregate or delete his own task.
+
+    GET /cc/comms/tasks/<task_name>  
+
+Delete a specified task in the target platform using the configured communication messenger library
+
+    DELETE /cc/comms/tasks/<task_name> 
+
+Get the list of the tasks created by the user in the target platform using the configured communication messenger library
+
+    GET /cc/comms/tasks/created
+
+Get the list with all the joined tasks in the target platform using the configured communication messenger library
+
+    GET /cc/comms/tasks/joined
+    
+Get the list of all the tasks the user is participating in the target platform using the configured communication messenger library
+    
+    GET /cc/comms/tasks/assigned
+
+Get the list with all the available trained models in the target platform using the configured communication messenger library
+
+    GET /cc/comms/models
+
+Requests a trained model, related to a specified task, in the target platform using the configured communication messenger library; the object obtained is then downloaded and saved locally by selecting one of the three extensions (formats) chosen: PKL, PMML, ONNX. An error message will be sent if a particular extension is not supported by the model
+
+    GET /cc/comms/models/<task_name>?extension
+
+Requests a model deletion from the selected task in the target platform using the configured communication messenger library
+
+    DELETE /cc/comms/models/<task_name>
+
+Requests the model lineage, related to a specified task, in the target platform using the configured communication messenger library
+
+    GET /cc/comms/models/<task_name>/lineage
 
 *FEDERATED MACHINE LEARNING*
 

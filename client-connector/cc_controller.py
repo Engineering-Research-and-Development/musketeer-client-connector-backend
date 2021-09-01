@@ -449,7 +449,7 @@ def task(task_name):
     return json.dumps(result), 200, {'ContentType': 'application/json'}
 
 
-@app.route('/cc/comms/tasks/created', methods=['GET'])  # the task created by the logged user
+@app.route('/cc/comms/tasks/created', methods=['GET'])
 @cross_origin()
 def get_created_task():
 
@@ -461,7 +461,7 @@ def get_created_task():
     return json.dumps(result), 200, {'ContentType': 'application/json'}
 
 
-@app.route('/cc/comms/tasks/joined', methods=['GET'])  # the task created by the logged user
+@app.route('/cc/comms/tasks/joined', methods=['GET'])
 @cross_origin()
 def get_joined_task():
 
@@ -514,9 +514,9 @@ def delete_model(task_name):
     username = g.user.username
     password = g.user.password
 
-    result = models.delete_model(credentials=credentials, user=username, password=password, task_name=task_name)
+    models.delete_model(credentials=credentials, user=username, password=password, task_name=task_name)
 
-    return json.dumps(result), 200, {'ContentType': 'application/json'}
+    return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
 
 
 @app.route('/cc/comms/models/<task_name>/lineage', methods=['GET'])
