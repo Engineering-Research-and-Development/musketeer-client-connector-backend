@@ -26,6 +26,7 @@ from abc import ABC, abstractmethod
 from subprocess import Popen, PIPE
 
 import sys
+import threading
 
 
 class Client:
@@ -52,7 +53,7 @@ class AggregatorSubProcess(Client):
     def run(self):
         print("SubProcess Aggregator started")
         Popen([sys.executable, 'aggregator.py', "--credentials", self.credentials, "--user", self.user,
-               "--password", self.password, "--task_name", self.task_name], stdout=PIPE)
+               "--password", self.password, "--task_name", self.task_name], bufsize=1, stdout=PIPE)
 
 
 class ParticipantSubProcess(Client):
@@ -62,8 +63,12 @@ class ParticipantSubProcess(Client):
 
     def run(self):
         print("SubProcess Participant started")
-        Popen([sys.executable, 'participant.py', "--credentials", self.credentials, "--user", self.user,
-               "--password", self.password, "--task_name", self.task_name], stdout=PIPE)
+        process = Popen([sys.executable, 'participant.py', "--credentials", self.credentials, "--user", self.user,
+               "--password", self.password, "--task_name", self.task_name], bufsize=1, stdout=PIPE)
+
+        for line in iter(process.stdout.readline, b''):
+            print(line)
+        process.communicate()
 
 
 class AggregatorSubProcessV2(Client):
@@ -75,7 +80,7 @@ class AggregatorSubProcessV2(Client):
         print("SubProcess Aggregator started")
         Popen([sys.executable, 'master.py', "--credentials", self.credentials, "--user", self.user,
                "--password", self.password, "--task_name", self.task_name, "--datasets", self.datasets,
-               "--platform", self.platform], stdout=PIPE)
+               "--platform", self.platform], bufsize=1, stdout=PIPE)
 
 
 class ParticipantSubProcessV2(Client):
@@ -84,7 +89,21 @@ class ParticipantSubProcessV2(Client):
         Client.__init__(self, credentials, user, password, task_name, datasets, platform)
 
     def run(self):
-        print("SubProcess Participant started")
-        Popen([sys.executable, 'worker.py', "--credentials", self.credentials, "--user", self.user,
-               "--password", self.password, "--task_name", self.task_name, "--datasets", self.datasets,
-               "--platform", self.platform], stdout=PIPE)
+
+        # Create a Thread with a function
+        th = threading.Thread(target=run_participant, args=[self.credentials, self.user, self.password, self.task_name, self.datasets, self.platform])
+
+        # Start the thread
+        th.start()
+
+
+def run_participant(credentials, user, password, task_name, datasets, platform):
+
+    print("SubProcess Participant started")
+    process = Popen([sys.executable, 'worker.py', "--credentials", credentials, "--user", user,
+                     "--password", password, "--task_name", task_name, "--datasets", datasets,
+                     "--platform", platform], bufsize=1, stdout=PIPE)
+
+    for line in iter(process.stdout.readline, b''):
+        print(line)
+    process.communicate()

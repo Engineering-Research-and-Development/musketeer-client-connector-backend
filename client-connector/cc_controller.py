@@ -143,7 +143,8 @@ def before_request():
                  "get_comm_configurations", "set_comm_configurations",
                  "get_mmll_configurations", "set_mmll_configurations",
                  "get_catalogue_configurations", "set_catalogue_configurations",
-                 "get_step_configurations", "logout_user"]
+                 "get_step_configurations", "logout_user",
+                 "get_datasets", "add_dataset", "delete_dataset", "update_dataset"]
     g.user = None
     logging.info('Endpoint: ' + str(request.endpoint) + ' ; Method: ' + str(request.method))
 
@@ -267,10 +268,14 @@ def get_datasets():
 def get_result_task_image():
 
     task_name = request.args.get('task')
+    user = g.user.username
 
-    url = "results/"+task_name+".png"
-
-    image = charts_utils.get_chart(url)
+    try:
+        url = "results/"+task_name+"_"+user+".png"
+        image = charts_utils.get_chart(url)
+    except:
+        url = "results/"+task_name+".png"
+        image = charts_utils.get_chart(url)
 
     return Response(image, mimetype='image/png')
 
@@ -288,6 +293,32 @@ def get_result_task_log_stream_json():
     response.headers.add_header('Connection', 'keep-alive')
 
     return response
+
+
+@app.route('/cc/results/logs', methods=['GET'])
+@cross_origin()
+def get_result_task_log_stream_plain():
+
+    user = g.user.username
+    task_name = request.args.get('task')
+    mode = request.args.get('mode')  # participant or aggregator
+
+    response = Response(logger.get_log_stream_plain(user, mode, task_name), mimetype='text/event-stream')
+    response.headers.add_header('Cache-Control', 'no-cache')
+    response.headers.add_header('Connection', 'keep-alive')
+
+    return response
+
+
+@app.route('/cc/results/batch/logs', methods=['GET'])
+@cross_origin()
+def get_result_task_log_batch():
+
+    user = g.user.username
+    task_name = request.args.get('task')
+    mode = request.args.get('mode')  # participant or aggregator
+
+    return json.dumps(logger.get_log_batch(user, mode, task_name)), 200, {'ContentType': 'application/json'}
 
 
 @app.route('/cc/datasets', methods=['POST'])
@@ -343,6 +374,22 @@ def login_user():
         logging.info('User logged: ' + str(user_obj.username))
 
     return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
+
+
+@app.route('/cc/comms/status', methods=['GET'])
+@cross_origin()
+def get_status():
+
+    username = g.user.username
+    password = g.user.password
+
+    if users.status(credentials, username, password):
+
+        return json.dumps({'success': True}), 200, {'ContentType': 'application/json'}
+
+    else:
+
+        return json.dumps({'success': False}), 200, {'ContentType': 'application/json'}
 
 
 @app.route("/cc/comms/logout", methods=['POST'])
@@ -449,7 +496,7 @@ def task(task_name):
     return json.dumps(result), 200, {'ContentType': 'application/json'}
 
 
-@app.route('/cc/comms/tasks/created', methods=['GET'])
+@app.route('/cc/comms/tasks/created', methods=['GET'])  # the task created by the logged user
 @cross_origin()
 def get_created_task():
 
@@ -461,7 +508,7 @@ def get_created_task():
     return json.dumps(result), 200, {'ContentType': 'application/json'}
 
 
-@app.route('/cc/comms/tasks/joined', methods=['GET'])
+@app.route('/cc/comms/tasks/joined', methods=['GET'])  # the task created by the logged user
 @cross_origin()
 def get_joined_task():
 
@@ -504,8 +551,9 @@ def get_model(task_name):
     extension = request.args.get('extension')
 
     model = models.get_model(credentials=credentials, user=username, password=password, task_name=task_name)
+    response = models.save_model(model, task_name, extension, username.lower())
 
-    return models.save_model(model, task_name, extension)
+    return response
 
 
 @app.route('/cc/comms/models/<task_name>', methods=['DELETE'])

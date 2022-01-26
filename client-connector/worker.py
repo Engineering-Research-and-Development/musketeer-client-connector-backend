@@ -23,6 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 from data_connector.data_connector import CsvConnector, PklConnector
+from utils.charts_utils import create_chart
 from communication import create_participant_communication
 from services.cc.configuration import get_mmll_class_from_classpath
 
@@ -44,11 +45,12 @@ def create_communication(credentials, user, password, task_name, platform):
     return create_participant_communication(credentials, user, password, task_name, platform)
 
 
-def run_worker_node(comms, workernode_class, task_definition, datasets):
+def run_worker_node(comms, workernode_class, task_definition, datasets, task_name, user):
 
     ####################################
     # PARAMETERS FROM TASK DEFINITION #
     algorithm_name = task_definition["algorithm_name"]
+    algorithm_type = task_definition["algorithm_type"].lower()
 
     pom = int(task_definition["POM"])
 
@@ -110,6 +112,9 @@ def run_worker_node(comms, workernode_class, task_definition, datasets):
             logger.info("No 'labels' provided")
 
     logger.info('Participant: loading Test Data')
+
+    x_tst = None
+    y_tst = None
     if "test" in datasets and datasets["test"] is not None:
         try:
             if datasets["test"]["format"] == "csv":
@@ -133,7 +138,47 @@ def run_worker_node(comms, workernode_class, task_definition, datasets):
     logger.info('Worker_' + algorithm_name + ' %s: EXIT' % comms)
 
     logger.info('Retrieving the trained model from WorkerNode')
-    # model = wn.get_model()
+
+    # Create chart using test dataset
+    try:
+        if x_tst is not None:
+
+            logger.info("Retrieving the trained model from WorkerNode")
+            model = wn.get_model()
+
+            if model is not None:
+
+                preprocessors = wn.get_preprocessors()
+                if preprocessors is not None:
+                    for preprocessor in preprocessors:
+                        if isinstance(preprocessors, tuple):
+
+                            [data_transformer, new_input_data_description, errors_preprocessing] = preprocessor
+
+                            if data_transformer is not None:
+                                x_tst = data_transformer.transform(x_tst)
+
+                            else:
+                                logger.error(str(errors_preprocessing))
+                                raise Exception
+                        else:
+
+                            data_transformer = preprocessor
+                            x_tst = data_transformer.transform(x_tst)
+
+                create_chart(user=user, master_node=wn, pom=pom, algorithm_name=algorithm_name, type=algorithm_type, task_name=task_name, model=model, x=x_tst, y_tst=y_tst)
+
+        if algorithm_name == "NN":
+
+            model = wn.get_model()
+            if model is not None:
+                output_model_path = "/results/models/" + task_name + "_" + user.lower() + "_model"
+                model.save(output_model_path)
+
+                logger.info('The Neural Network model resulting from ' + task_name + ' is saved in your local file system.')
+
+    except Exception as e:
+        logger.info(e)
 
     logger.info('Participant: completed')
     logger.info('!x')  # To end log stream event
@@ -178,7 +223,7 @@ def main():
     wrapper_comms = wrapper_comms_class(comms)
 
     # Run 'worker' participant
-    run_worker_node(wrapper_comms, workernode_class, task_definition, datasets)
+    run_worker_node(wrapper_comms, workernode_class, task_definition, datasets, task_name, user)
 
 
 if __name__ == "__main__":

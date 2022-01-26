@@ -43,6 +43,7 @@ def do_preprocessing(preprocessing, input_data_description, mn):
 
         for parameter in preprocessing["properties"]:
 
+            # parameters.append(parameter["name"] + "=" + parameter["value"])
             parameters.append(parameter["value"])
 
     return getattr(mn, preprocessing["name"])(*parameters)

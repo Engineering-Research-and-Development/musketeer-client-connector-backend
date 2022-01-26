@@ -99,3 +99,22 @@ def deregister(credentials, username, password):
     except Exception as err:
         LOGGER.error('error: %s', err)
         raise err
+
+
+def status(credentials, username, password):
+
+    try:
+
+        context = utils.platform(credentials, username, password)
+
+        user = ffl.Factory.user(context)
+
+        with user:
+
+            LOGGER.info("Green status")
+
+        return True
+
+    except Exception as err:
+        LOGGER.error('Red status: %s', err)
+        return False

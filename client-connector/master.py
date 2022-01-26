@@ -50,7 +50,7 @@ def create_communication(credentials, user, password, task_name, platform):
     return create_aggregator_communication(credentials, user, password, task_name, platform)
 
 
-def run_master_node(comms, masternode_class, task_definition, datasets, aggregator, task_name):
+def run_master_node(comms, masternode_class, task_definition, datasets, aggregator, task_name, user):
 
     ####################################
     # PARAMETERS FROM TASK DEFINITION #
@@ -132,7 +132,7 @@ def run_master_node(comms, masternode_class, task_definition, datasets, aggregat
     ####################################
     # CHECK DATA AT WORKERS
 
-    if input_data_description is not None:
+    if input_data_description is not None and input_data_description["input_types"][0]["type"] != "matrix":
 
         logger.info("Checking data at workers")
 
@@ -238,49 +238,26 @@ def run_master_node(comms, masternode_class, task_definition, datasets, aggregat
     # Update server status to "completed"
     logger.info('Dispatching final model and stopping the task')
 
-    # Create chart
-    create_chart(master_node=mn, pom=pom, algorithm_name=algorithm_name, type=algorithm_type, task_name=task_name, model=model, x=x_tst, y_tst=y_tst)
+    # Create chart using test dataset
+    try:
+        if model is not None:
+            create_chart(user=user, master_node=mn, pom=pom, algorithm_name=algorithm_name, type=algorithm_type, task_name=task_name, model=model, x=x_tst, y_tst=y_tst)
 
-    if algorithm_name == "NN":
+            if algorithm_name == "NN":
 
-        ''' 
-        from tensorflow.keras.models import Sequential, load_model, save_model, Model
+                output_model_path = "/results/models/" + task_name + "_" + user.lower() + "_model"
+                model.save(output_model_path)
 
-        # Hotfix function
-        def make_keras_picklable():
-            def __getstate__(self):
-                model_str = ""
-                with tempfile.NamedTemporaryFile(suffix='.hdf5', delete=True) as fd:
-                    save_model(self, fd.name, overwrite=True)
-                    model_str = fd.read()
-                d = {'model_str': model_str}
-                return d
+                logger.info('The Neural Network model resulting from ' + task_name + ' is saved in your local file system.')
 
-            def __setstate__(self, state):
-                with tempfile.NamedTemporaryFile(suffix='.hdf5', delete=True) as fd:
-                    fd.write(state['model_str'])
-                    fd.flush()
-                    model = load_model(fd.name)
-                self.__dict__ = model.__dict__
+                with aggregator:
+                    aggregator.stop_task(model=None)
 
-            cls = Model
-            cls.__getstate__ = __getstate__
-            cls.__setstate__ = __setstate__
+    except Exception as e:
+        logger.info(e)
 
-        make_keras_picklable()
-        '''
-
-        output_model_path = "/results/models/" + task_name + "_model"
-        model.save(output_model_path)
-
-        logger.info('The Neural Network model resulting from ' + task_name + ' is saved in your local file system.')
-
-        with aggregator:
-            aggregator.stop_task(model=None)
-
-    else:
-        with aggregator:
-            aggregator.stop_task(model=model)
+    with aggregator:
+        aggregator.stop_task(model=model)
 
     logger.info('Task completed')
     logger.info('!x')  # To end log stream event
@@ -329,7 +306,7 @@ def main():
     wrapper_comms = wrapper_comms_class(comms)
 
     # Run 'master' aggregator
-    run_master_node(wrapper_comms, masternode_class, task_definition, datasets, comms, task_name)
+    run_master_node(wrapper_comms, masternode_class, task_definition, datasets, comms, task_name, user)
 
 
 if __name__ == "__main__":

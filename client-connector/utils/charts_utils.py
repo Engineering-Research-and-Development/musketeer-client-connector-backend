@@ -52,7 +52,7 @@ config.read('app.ini')
 SERVER_DB_PATH = config["SERVER"]["SERVER_DB_PATH"]
 
 
-def create_chart(master_node, pom, algorithm_name, type, task_name, model, x, y_tst):
+def create_chart(user, master_node, pom, algorithm_name, type, task_name, model, x, y_tst):
 
     if algorithm_name == "LC_pm":
 
@@ -65,22 +65,25 @@ def create_chart(master_node, pom, algorithm_name, type, task_name, model, x, y_
 
     if type in ['clustering']:
 
-        clustering_pca(x, preds, task_name)
+        clustering_pca(user.lower(), x, preds, task_name)
 
     elif type in ['classification']:
 
         y = np.argmax(y_tst, axis=-1)  # Convert to labels
         preds = np.argmax(preds, axis=-1)  # Convert to labels
-        classes = np.arange(y_tst.shape[1])
 
-        plot_cm_seaborn(preds, y, classes, task_name=task_name, normalize=True)
+        try:
+            classes = np.arange(y_tst.shape[1])
+        except:
+            classes = np.unique(y_tst)
+            y = y_tst
+            preds = (model.predict(x) > 0.5).astype('int32')
+
+        plot_cm_seaborn(user.lower(), preds, y, classes, task_name=task_name, normalize=True)
 
     elif type in ['regression']:
 
         preds = model.predict(x)
-
-        logger.debug(y_tst)
-        logger.debug(preds)
 
         plt = CompareModels()
         try:
@@ -88,11 +91,11 @@ def create_chart(master_node, pom, algorithm_name, type, task_name, model, x, y_
         except:
             plt.add(model_name="Regression - evaluation metrics", y_test=y_tst.flatten(), y_pred=preds.flatten())
 
-        output_filename = 'results/' + task_name + '.png'
+        output_filename = 'results/' + task_name + '_' + user + '.png'
         plt.savefig(output_filename)
 
 
-def clustering_pca(x, preds, task_name):
+def clustering_pca(user, x, preds, task_name):
 
     if len(x[0]) == 2:
 
@@ -103,9 +106,8 @@ def clustering_pca(x, preds, task_name):
             plt.ylabel('y')
             plt.title('Clustering')
             plt.grid(True)
-            output_filename = 'results/' + task_name + '.png'
+            output_filename = 'results/' + task_name + '_' + user + '.png'
             plt.savefig(output_filename)
-            # add_image_result(task_name, output_filename)
 
         except Exception:
             traceback.print_exc()
@@ -121,17 +123,14 @@ def clustering_pca(x, preds, task_name):
             plt.ylabel('PCA component 2')
             plt.title(' Clustering with 2 PCA components')
             plt.grid(True)
-            output_filename = 'results/' + task_name + '.png'
+            output_filename = 'results/' + task_name + '_' + user + '.png'
             plt.savefig(output_filename)
-            # add_image_result(task_name, output_filename)
-            # TO INTEGRATE
-            # mpld3.save_html(fig, 'results/' + task_name + '.html')
 
         except Exception:
             traceback.print_exc()
 
 
-def plot_cm_seaborn(preds, y, classes, task_name, normalize=False, cmap=plt.cm.GnBu):
+def plot_cm_seaborn(user, preds, y, classes, task_name, normalize=False, cmap=plt.cm.GnBu):
 
     cnf_matrix = confusion_matrix(y, preds)
 
@@ -149,9 +148,8 @@ def plot_cm_seaborn(preds, y, classes, task_name, normalize=False, cmap=plt.cm.G
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     plt.title("Confusion Matrix - " + task_name)
-    output_filename = 'results/' + task_name + '.png'
+    output_filename = 'results/' + task_name + '_' + user + '.png'
     plt.savefig(output_filename)
-    # add_image_result(task_name, output_filename)
 
 
 def add_image_result(task_name, relative_path):
@@ -178,7 +176,6 @@ def add_image_result(task_name, relative_path):
 def get_chart(url):
 
     im = Image.open(url)
-    # im.thumbnail((w, h), Image.ANTIALIAS)
     io = BytesIO()
     im.save(io, format='PNG')
 

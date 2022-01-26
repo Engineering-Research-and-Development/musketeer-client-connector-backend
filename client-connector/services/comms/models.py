@@ -28,15 +28,10 @@ import logging
 import communication_abstract_interface as ffl
 import os
 import json
-# import tensorflow as tf
-# import pickle
 
 
 LOGGER = logging.getLogger('comms.models')
 LOGGER.setLevel(logging.DEBUG)
-
-# global graph
-# graph = tf.compat.v1.get_default_graph()
 
 
 def get_models(credentials, user, password):
@@ -75,10 +70,10 @@ def get_model(credentials, user, password, task_name):
     return model
 
 
-def save_model(model, task_name, extension):
+def save_model(model, task_name, extension, username):
 
-    output_path = "/results/models/" + task_name + "_model." + extension
-
+    output_path = "/results/models/" + task_name + "_" + username + "_model." + extension
+    model.logger = LOGGER
     try:
         model.save(output_path)
         if os.path.exists(output_path):

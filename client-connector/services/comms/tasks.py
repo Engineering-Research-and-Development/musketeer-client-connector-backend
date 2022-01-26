@@ -92,6 +92,8 @@ class Tasks:
 
         task["definition"] = json.loads(task["definition"])
         task["definition"] = decompress_data_descriptions(task["definition"])
+        result_path = "results/" + task_name + '_' + self.user.lower() + ".png"
+        old_result_path = "results/" + task_name + ".png"
 
         # Calculate and set the "actions"
         # It's the task "creator"
@@ -103,8 +105,12 @@ class Tasks:
 
             if status == "COMPLETE":
 
+                if os.path.exists(result_path) \
+                        or os.path.exists(old_result_path):
+                    result_flag = 1
+                else:
+                    result_flag = -1
                 aggregate_flag = -1
-                result_flag = 1
                 logs_flag = 1
 
             elif status == "CREATED":
@@ -135,11 +141,16 @@ class Tasks:
             else:
                 logs_flag = -1
 
-            result_flag = -1
             aggregate_flag = -1
             delete_flag = -1
+            result_flag = -1
 
-            if status == "CREATED":
+            if status == "COMPLETE":
+                if os.path.exists(result_path) \
+                        or os.path.exists(old_result_path):
+                    result_flag = 1
+
+            if status == "CREATED" or status == "PENDING":
 
                 participate_flag = 1
             else:
